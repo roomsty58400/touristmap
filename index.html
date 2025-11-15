@@ -638,44 +638,102 @@
       }
 
       async function exportPDF() {
-        if (steps.length === 0) return alert('Ajoute des étapes avant d\'exporter en PDF');
+        if (steps.length === 0) return alert("Ajoute des étapes avant d'exporter en PDF");
         try {
-          // capture map as image
-          const mapEl = document.getElementById('map');
-          const mapCanvas = await html2canvas(mapEl, {useCORS:true, logging:false});
-          const mapImgData = mapCanvas.toDataURL('image/png');
+          // ensure markers/polyline are present and center map on all steps
+          if (steps.length > 0 && typeof google !== 'undefined' && google.maps && map) {
+            // save current view
+            const prevCenter = map.getCenter ? map.getCenter() : null;
+            const prevZoom = map.getZoom ? map.getZoom() : null;
 
-          // build text content for steps
-          let content = 'Itinéraire\n\n';
-          steps.forEach((s, i) => {
-            content += `${i + 1}. ${s.name || 'Étape ' + (i + 1)}\n`;
-            content += `${s.address}\n`;
-            if (s.distanceText) content += `Distance: ${s.distanceText} - Durée: ${s.durationText}\n`;
-            if (s.desc) content += `${s.desc}\n`;
-            content += '\n';
-          });
+            // refresh markers and polyline
+            refreshMap();
 
-          // create PDF using jsPDF (umd)
-          const { jsPDF } = window.jspdf;
-          const pdf = new jsPDF('p', 'mm', 'a4');
+            // fit bounds to steps
+            if (steps.length === 1) {
+              map.setCenter({ lat: steps[0].lat, lng: steps[0].lng });
+              map.setZoom(12);
+            } else {
+              const bounds = new google.maps.LatLngBounds();
+              steps.forEach((s) => bounds.extend(new google.maps.LatLng(s.lat, s.lng)));
+              map.fitBounds(bounds);
+            }
 
-          // add map image at top
-          const pageWidth = pdf.internal.pageSize.getWidth();
-          const imgProps = pdf.getImageProperties(mapImgData);
-          const imgWidth = pageWidth - 20; // margins
-          const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
-          pdf.addImage(mapImgData, 'PNG', 10, 10, imgWidth, Math.min(imgHeight, 90));
+            // wait for the map to finish rendering tiles and become idle
+            await new Promise((resolve) => google.maps.event.addListenerOnce(map, 'idle', resolve));
+            // small extra delay to let tiles paint
+            await new Promise((r) => setTimeout(r, 300));
 
-          // add text below image
-          const startY = 10 + Math.min(imgHeight, 90) + 8;
-          const split = pdf.splitTextToSize(content, pageWidth - 20);
-          pdf.setFontSize(11);
-          pdf.text(split, 10, startY);
+            // capture map as image
+            const mapEl = document.getElementById('map');
+            const mapCanvas = await html2canvas(mapEl, { useCORS: true, logging: false, scale: 1 });
+            const mapImgData = mapCanvas.toDataURL('image/png');
 
-          pdf.save('itineraire.pdf');
+            // restore previous view
+            if (prevCenter && prevZoom !== null) {
+              map.setCenter(prevCenter);
+              map.setZoom(prevZoom);
+            }
+
+            // build text content for steps
+            let content = 'Itinéraire\n\n';
+            steps.forEach((s, i) => {
+              content += `${i + 1}. ${s.name || 'Étape ' + (i + 1)}\n`;
+              content += `${s.address}\n`;
+              if (s.distanceText) content += `Distance: ${s.distanceText} - Durée: ${s.durationText}\n`;
+              if (s.desc) content += `${s.desc}\n`;
+              content += '\n';
+            });
+
+            // create PDF using jsPDF (umd)
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF('p', 'mm', 'a4');
+
+            // add map image at top
+            const pageWidth = pdf.internal.pageSize.getWidth();
+            const imgProps = pdf.getImageProperties(mapImgData);
+            const imgWidth = pageWidth - 20; // margins
+            const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
+            pdf.addImage(mapImgData, 'PNG', 10, 10, imgWidth, Math.min(imgHeight, 90));
+
+            // add text below image
+            const startY = 10 + Math.min(imgHeight, 90) + 8;
+            const split = pdf.splitTextToSize(content, pageWidth - 20);
+            pdf.setFontSize(11);
+            pdf.text(split, 10, startY);
+
+            pdf.save('itineraire.pdf');
+          } else {
+            // fallback: capture map container without recentering
+            const mapEl = document.getElementById('map');
+            const mapCanvas = await html2canvas(mapEl, { useCORS: true, logging: false, scale: 1 });
+            const mapImgData = mapCanvas.toDataURL('image/png');
+
+            let content = 'Itinéraire\n\n';
+            steps.forEach((s, i) => {
+              content += `${i + 1}. ${s.name || 'Étape ' + (i + 1)}\n`;
+              content += `${s.address}\n`;
+              if (s.distanceText) content += `Distance: ${s.distanceText} - Durée: ${s.durationText}\n`;
+              if (s.desc) content += `${s.desc}\n`;
+              content += '\n';
+            });
+
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const pageWidth = pdf.internal.pageSize.getWidth();
+            const imgProps = pdf.getImageProperties(mapImgData);
+            const imgWidth = pageWidth - 20;
+            const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
+            pdf.addImage(mapImgData, 'PNG', 10, 10, imgWidth, Math.min(imgHeight, 90));
+            const startY = 10 + Math.min(imgHeight, 90) + 8;
+            const split = pdf.splitTextToSize(content, pageWidth - 20);
+            pdf.setFontSize(11);
+            pdf.text(split, 10, startY);
+            pdf.save('itineraire.pdf');
+          }
         } catch (e) {
           console.error('PDF export error', e);
-          alert('Erreur lors de l\'export PDF : ' + e.message);
+          alert('Erreur lors de l\'export PDF : ' + (e && e.message ? e.message : e));
         }
       }
 
