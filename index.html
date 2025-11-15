@@ -63,6 +63,21 @@
     position:absolute;
     top:12px;
     right:16px;
+    font-size:14px;
+  }
+  #google_translate_element iframe{
+    max-width:180px !important;
+  }
+  .goog-te-gadget{
+    font-size:14px !important;
+  }
+  .goog-te-gadget-simple{
+    background-color:transparent !important;
+    border:none !important;
+    padding:0 !important;
+  }
+  .goog-te-gadget-simple .goog-te-gadget-simple{
+    padding:0 !important;
   }
 
   footer{
@@ -133,9 +148,14 @@
   }
 
   @media (max-width:699px){
-    header{ padding:10px 14px }
-    #google_translate_element{ position:static; margin-top:8px; align-self:flex-end }
-    .header-center{ order:2 }
+    header{ padding:10px 14px; flex-wrap:wrap }
+    #google_translate_element{ 
+      position:absolute; 
+      top:8px; 
+      right:8px; 
+      font-size:12px;
+    }
+    .header-center{ order:1; width:100%; margin-bottom:4px }
     main{ flex-direction:column; padding:12px; gap:12px; min-height:unset }
     .left{ width:100%; height:auto; max-height:unset; overflow:visible; padding-bottom:8px }
     .right{ width:100%; padding-top:0 }
@@ -148,7 +168,7 @@
     .inline{ justify-content:flex-start }
     footer{ font-size:12px; padding:10px 14px }
     #logo{ height:36px }
-    header .subtitle{ font-size:0.85rem }
+    header .subtitle{ font-size:0.7rem; margin-top:2px }
   }
 
   :focus{ outline:3px solid rgba(11,94,215,0.15); outline-offset:2px }
