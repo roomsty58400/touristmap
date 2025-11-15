@@ -4,101 +4,164 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>touristmap - créateur de circuits touristiques</title>
-  <style>
-    /* ...existing code... */
+<!-- Remplace la section <style> dans <head> par ceci et remplace le <header> existant par le bloc indiqué ci-dessous. -->
+<style>
+  :root{
+    --primary:#0b5ed7;
+    --bg:#f6f8fa;
+    --card:#fff;
+    --muted:#666;
+    --shadow: rgba(0,0,0,0.075);
+  }
 
-    /* Base */
-    :root{
-      --primary:#0b5ed7;
-      --bg:#f6f8fa;
-      --card:#fff;
-      --muted:#666;
-      --shadow: rgba(0,0,0,0.075);
-    }
+  html,body{
+    height:100%;
+    margin:0;
+    padding:0;
+    font-family:Inter, Arial, sans-serif;
+    background:var(--bg);
+    color:#111;
+  }
 
-    html,body{height:100%;margin:0;padding:0;font-family:Inter, Arial, sans-serif;background:var(--bg);color:#111}
-    header, footer{background:var(--primary);color:white;padding:14px 20px;position:relative;box-sizing:border-box}
-    header h1{margin:0;font-size:1.25rem}
-    header h2{margin:4px 0 0;font-size:0.95rem;font-weight:400}
-    main{display:flex;gap:16px;padding:16px;box-sizing:border-box;align-items:flex-start;min-height:calc(100vh - 120px)}
+  /* Header + logo centered */
+  header{
+    background:var(--primary);
+    color:white;
+    padding:12px 20px;
+    box-sizing:border-box;
+    position:relative;
+    display:flex;
+    align-items:center;
+    gap:12px;
+    justify-content:space-between;
+  }
+  /* center column containing logo + subtitle */
+  .header-center{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    flex:1;
+    text-align:center;
+  }
+  #logo{
+    height:44px;
+    max-width:100%;
+    object-fit:contain;
+    display:block;
+    margin-bottom:4px;
+  }
+  header .subtitle{
+    margin:0;
+    font-size:0.9rem;
+    font-weight:400;
+    color:rgba(255,255,255,0.95);
+  }
 
-    section{background:var(--card);padding:12px;border-radius:8px;box-shadow:0 2px 8px var(--shadow);box-sizing:border-box}
-    .left{width:360px;max-width:100%;height:calc(100vh - 160px);overflow:auto;display:flex;flex-direction:column;flex-shrink:0}
-    .right{flex:1;min-width:0;display:flex;flex-direction:column}
+  /* keep translate widget top-right */
+  #google_translate_element{
+    position:absolute;
+    top:12px;
+    right:16px;
+  }
 
-    #modeSelector{margin-bottom:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
-    label{cursor:pointer;font-size:24px;padding:4px;user-select:none;display:flex;align-items:center}
-    label input{margin-right:6px;vertical-align:middle;cursor:pointer}
-    label input:checked + span{font-weight:bold;color:var(--primary)}
-    label span{font-size:18px;user-select:none}
+  footer{
+    background:inherit;
+    color:#666;
+    padding:12px 20px;
+    box-sizing:border-box;
+  }
 
-    form{max-height:calc(100vh - 320px);overflow-y:auto;box-sizing:border-box;display:flex;flex-direction:column;gap:8px}
-    label,input,textarea,button{font-family:inherit}
-    input[type=text],textarea{box-sizing:border-box;max-width:100%;width:100%}
-    textarea{max-height:120px;resize:vertical}
-    button{background:var(--primary);color:white;border:none;padding:8px 12px;border-radius:6px;cursor:pointer}
-    .smallbtn{background:#6c757d;padding:6px 8px}
-    .step{border:1px solid #e3e6ea;padding:8px;margin:8px 0;border-radius:8px;background:#fafbfc;display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap}
-    .step .meta{flex:1;min-width:0}
-    .inline{display:flex;gap:8px;flex-wrap:wrap}
-    #map{width:100%;height:70vh;border-radius:8px;min-height:240px;box-sizing:border-box}
-    .thumb{width:72px;height:48px;object-fit:cover;border-radius:4px;border:1px solid #ddd}
-    .hint{font-size:13px;color:var(--muted)}
-    footer{color:#666;background:inherit;padding:12px 20px}
-    #google_translate_element{position:absolute;top:16px;right:20px}
-    #totalInfo{margin-top:8px;font-size:14px;font-weight:bold;color:#333}
+  main{
+    display:flex;
+    gap:16px;
+    padding:16px;
+    box-sizing:border-box;
+    align-items:flex-start;
+    min-height:calc(100vh - 120px);
+  }
 
-    /* Buttons wrapping and responsiveness */
-    .inline button{flex-shrink:0}
-    #stepsList{display:flex;flex-direction:column;gap:6px}
+  section{
+    background:var(--card);
+    padding:12px;
+    border-radius:8px;
+    box-shadow:0 2px 8px var(--shadow);
+    box-sizing:border-box;
+  }
 
-    /* Desktop-ish breakpoint */
-    @media (min-width: 1000px) {
-      main{padding:20px;gap:20px}
-      .left{width:360px;height:calc(100vh - 160px)}
-      #map{height:70vh}
-      header h1{font-size:1.5rem}
-    }
+  .left{ width:360px; max-width:100%; height:calc(100vh - 160px); overflow:auto; display:flex; flex-direction:column; flex-shrink:0 }
+  .right{ flex:1; min-width:0; display:flex; flex-direction:column }
 
-    /* Tablet / small desktop */
-    @media (min-width:700px) and (max-width:999px){
-      main{padding:16px}
-      .left{width:320px;height:calc(100vh - 160px)}
-      #map{height:60vh}
-    }
+  #modeSelector{ margin-bottom:12px; display:flex; gap:12px; align-items:center; flex-wrap:wrap }
+  label{ cursor:pointer; font-size:24px; padding:4px; user-select:none; display:flex; align-items:center }
+  label input{ margin-right:6px; vertical-align:middle; cursor:pointer }
+  label input:checked + span{ font-weight:bold; color:var(--primary) }
+  label span{ font-size:18px; user-select:none }
 
-    /* Mobile: stack elements vertically, avoid stretching */
-    @media (max-width:699px){
-      header{padding:12px 14px}
-      header h1{font-size:1.05rem}
-      header h2{font-size:0.9rem}
-      #google_translate_element{position:static;margin-top:8px}
-      main{flex-direction:column;padding:12px;gap:12px;min-height:unset}
-      .left{width:100%;height:auto;max-height:unset;overflow:visible;padding-bottom:8px}
-      .right{width:100%;padding-top:0}
-      #map{height:50vh;border-radius:8px}
-      form{max-height:none}
-      .step{flex-direction:column;align-items:stretch}
-      label{font-size:20px}
-      label span{font-size:16px}
-      input[type=text],textarea{font-size:15px}
-      .inline{justify-content:flex-start}
-      footer{font-size:12px;padding:10px 14px}
-    }
+  form{ max-height:calc(100vh - 320px); overflow-y:auto; box-sizing:border-box; display:flex; flex-direction:column; gap:8px }
+  label,input,textarea,button{ font-family:inherit }
+  input[type=text],textarea{ box-sizing:border-box; max-width:100%; width:100% }
+  textarea{ max-height:120px; resize:vertical }
+  button{ background:var(--primary); color:white; border:none; padding:8px 12px; border-radius:6px; cursor:pointer }
+  .smallbtn{ background:#6c757d; padding:6px 8px }
 
-    /* Accessibility: ensure focus outlines */
-    :focus{outline:3px solid rgba(11,94,215,0.15);outline-offset:2px}
+  .step{ border:1px solid #e3e6ea; padding:8px; margin:8px 0; border-radius:8px; background:#fafbfc; display:flex; gap:8px; align-items:flex-start; flex-wrap:wrap }
+  .step .meta{ flex:1; min-width:0 }
+  .inline{ display:flex; gap:8px; flex-wrap:wrap }
+  #map{ width:100%; height:70vh; border-radius:8px; min-height:240px; box-sizing:border-box }
 
-    /* ...existing code... */
-  </style>
-</head>
-<body>
-  <!-- ...existing code... -->
-  <header>
-    <h1>touristmap</h1>
-    <h2>créateur de circuits touristiques</h2>
-    <div id="google_translate_element"></div>
-  </header>
+  .thumb{ width:72px; height:48px; object-fit:cover; border-radius:4px; border:1px solid #ddd }
+  .hint{ font-size:13px; color:var(--muted) }
+  #totalInfo{ margin-top:8px; font-size:14px; font-weight:bold; color:#333 }
+
+  .inline button{ flex-shrink:0 }
+  #stepsList{ display:flex; flex-direction:column; gap:6px }
+
+  /* Breakpoints */
+  @media (min-width:1000px){
+    main{ padding:10px; gap:20px }
+    .left{ width:360px; height:calc(100vh - 160px) }
+    #map{ height:70vh }
+    #logo{ height: 75px; }
+  }
+
+  @media (min-width:700px) and (max-width:999px){
+    main{ padding:16px }
+    .left{ width:320px; height:calc(100vh - 160px) }
+    #map{ height:60vh }
+    #logo{ height:44px }
+  }
+
+  @media (max-width:699px){
+    header{ padding:10px 14px }
+    #google_translate_element{ position:static; margin-top:8px; align-self:flex-end }
+    .header-center{ order:2 }
+    main{ flex-direction:column; padding:12px; gap:12px; min-height:unset }
+    .left{ width:100%; height:auto; max-height:unset; overflow:visible; padding-bottom:8px }
+    .right{ width:100%; padding-top:0 }
+    #map{ height:50vh; border-radius:8px }
+    form{ max-height:none }
+    .step{ flex-direction:column; align-items:stretch }
+    label{ font-size:20px }
+    label span{ font-size:16px }
+    input[type=text],textarea{ font-size:15px }
+    .inline{ justify-content:flex-start }
+    footer{ font-size:12px; padding:10px 14px }
+    #logo{ height:36px }
+    header .subtitle{ font-size:0.85rem }
+  }
+
+  :focus{ outline:3px solid rgba(11,94,215,0.15); outline-offset:2px }
+</style>
+
+<!-- Remplace le <header> existant par ce bloc : -->
+<header>
+  <div class="header-center" role="banner">
+    <img id="logo" src="touristmap2.png" alt="touristmap logo">
+    <p class="subtitle">créateur de circuits touristiques</p>
+  </div>
+  <div id="google_translate_element" aria-hidden="true"></div>
+</header>
   <main>
     <section class="left" aria-label="Gestion des étapes">
       <!-- ...existing code... -->
