@@ -1,0 +1,498 @@
+
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>touristmap - créateur de circuits touristiques</title>
+  <style>
+    body {font-family: Inter, Arial, sans-serif; margin:0; padding:0; background:#f6f8fa; color:#111;}
+    header, footer {background:#0b5ed7; color:white; padding:14px 20px; position: relative;}
+    main {display:flex; gap:16px; padding:16px;}
+    section {background:#fff; padding:12px; border-radius:8px; box-shadow:0 2px 8px rgba(0,0,0,0.075);}
+    .left {width:360px; height:calc(100vh - 120px); overflow:auto; display:flex; flex-direction: column;}
+    .right {flex:1;}
+    #modeSelector {
+      margin-bottom: 12px;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+    label {
+      cursor: pointer;
+      font-size: 24px;
+      padding: 4px;
+      user-select: none;
+    }
+    label input {
+      margin-right: 4px;
+      vertical-align: middle;
+      cursor: pointer;
+    }
+    label input:checked + span {
+      font-weight: bold;
+      color: #0b5ed7;
+    }
+    label span {
+      font-size: 18px;
+      user-select: none;
+    }
+    form {
+      max-height: calc(100vh - 280px);
+      overflow-y: auto;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    label, input, textarea, button {font-family:inherit;}
+    input[type=text], textarea {box-sizing: border-box; max-width: 100%; width: 100%;}
+    textarea {max-height: 120px; resize: vertical;}
+    button {background:#0b5ed7; color:white; border:none; padding:8px 12px; border-radius:6px; cursor:pointer;}
+    .smallbtn {background:#6c757d; padding:6px 8px;}
+    .step {border:1px solid #e3e6ea; padding:8px; margin:8px 0; border-radius:8px; background:#fafbfc; display:flex; gap:8px; align-items:flex-start;}
+    .step .meta {flex:1;}
+    .inline {display:flex; gap:8px; flex-wrap: wrap;}
+    #map {width:100%; height:70vh; border-radius:8px;}
+    .thumb {width:72px; height:48px; object-fit:cover; border-radius:4px; border:1px solid #ddd;}
+    .hint {font-size:13px; color:#666;}
+    footer {color:#666; background:inherit;}
+    #btnOptimize { display: none; }
+    #btnQR { display: none; }
+    #google_translate_element { position: absolute; top: 16px; right: 20px; }
+    #totalInfo {
+      margin-top: 8px;
+      font-size: 14px;
+      font-weight: bold;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>touristmap</h1>
+    <h2>créateur de circuits touristiques</h2>
+    <div id="google_translate_element"></div>
+  </header>
+  <main>
+    <section class="left" aria-label="Gestion des étapes">
+      <div id="modeSelector">
+        <label><input type="radio" name="mode" value="WALKING" checked><span>🚶‍♂️</span></label>
+        <label><input type="radio" name="mode" value="BICYCLING"><span>🚴‍♀️</span></label>
+        <label><input type="radio" name="mode" value="DRIVING"><span>🚗</span></label>
+        <label><input type="radio" name="mode" value="DRIVING_TRUCK"><span>🚛</span></label>
+      </div>
+      <form id="addStepForm" autocomplete="off">
+        <input id="inputAddress" type="text" placeholder="Adresse ou lien Maps" required autofocus />
+        <input id="inputName" type="text" placeholder="Nom (facultatif)" />
+        <textarea id="inputDesc" rows="3" placeholder="Description / notes (facultatif)"></textarea>
+        <label class="hint">Photo : <input id="inputPhoto" type="file" accept="image/*" /></label>
+        <div class="inline" style="margin-top:8px">
+          <button type="button" id="btnAdd">Ajouter l'étape</button>
+          <button type="button" id="btnOptimize" class="smallbtn">Optimiser ordre</button>
+          <button type="button" id="btnClear" class="smallbtn">Tout effacer</button>
+        </div>
+      </form>
+      <hr />
+      <h2>Étapes (<span id="count">0</span>)</h2>
+      <div id="stepsList"></div>
+      <div id="totalInfo" aria-live="polite"></div>
+      <hr />
+      <p class="hint" style="margin-top:8px">
+        Les photos/données restent en local (navigateur). Pour déployer, héberge ce fichier sur un site sécurisé.
+      </p>
+    </section>
+    <section class="right">
+      <h2>Carte</h2>
+      <div id="map" aria-label="Carte interactive">Chargement…</div>
+      <div class="inline" style="margin-top:8px">
+        <button type="button" id="btnOpenGoogle" class="smallbtn">Ouvrir Google Maps</button>
+        <button type="button" id="btnExportKML" class="smallbtn">Exporter KML</button>
+        <button type="button" id="btnExportGPX" class="smallbtn">Exporter GPX</button>
+        <button type="button" id="btnQR" class="smallbtn">QR du parcours</button>
+        <button type="button" id="btnOpenWaze" class="smallbtn">Ouvrir Waze</button>
+        <button type="button" id="btnOpenTomTom" class="smallbtn">Ouvrir TomTom</button>
+        <button type="button" id="btnOpenGarmin" class="smallbtn">Ouvrir Garmin</button>
+      </div>
+      <div id="qrContainer" style="margin-top:12px"></div>
+    </section>
+  </main>
+  <footer>
+    <small>Version client — tout fonctionne hors-ligne (sauf géocodification API Google).</small>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDEnoRyrP8_vFUQhK8V9s7ch1DEBECEyiA&libraries=places" async defer></script>
+
+  <script>
+    function googleTranslateElementInit() {
+      new google.translate.TranslateElement(
+        { pageLanguage: 'fr', layout: google.translate.TranslateElement.InlineLayout.SIMPLE },
+        'google_translate_element'
+      );
+    }
+  </script>
+  <script src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      let map, geocoder, placesService, autocomplete, directionsService;
+      let markers = [];
+      let polyline = null;
+      let steps = [];
+      let currentMode = 'WALKING';
+
+      const modeRadios = document.querySelectorAll('input[name="mode"]');
+      modeRadios.forEach(radio =>
+        radio.addEventListener('change', (e) => {
+          currentMode = e.target.value;
+          if (steps.length > 1) updateDistancesAndDurations();
+        })
+      );
+
+      function uid() {
+        return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+      }
+
+      function coordsFromMapsUrl(url) {
+        try {
+          if (!url) return null;
+          const decoded = decodeURIComponent(url);
+          const m = decoded.match(/@(-?[\d.]+),(-?[\d.]+)/);
+          if (m) return { lat: parseFloat(m[1]), lng: parseFloat(m[2]) };
+          const m2 = decoded.match(/!3d(-?[\d.]+)!4d(-?[\d.]+)/);
+          if (m2) return { lat: parseFloat(m2[1]), lng: parseFloat(m2[2]) };
+        } catch (e) {}
+        return null;
+      }
+
+      function geocode(input) {
+        return new Promise((resolve, reject) => {
+          const coords = coordsFromMapsUrl(input);
+          if (coords) {
+            resolve(coords);
+            return;
+          }
+
+          geocoder.geocode({ address: input }, (results, status) => {
+            if (status === 'OK' && results && results[0]) {
+              const loc = results[0].geometry.location;
+              resolve({ lat: loc.lat(), lng: loc.lng() });
+            } else {
+              reject(status);
+            }
+          });
+        });
+      }
+
+      async function updateDistancesAndDurations() {
+        if (!directionsService) directionsService = new google.maps.DirectionsService();
+
+        let totalDistance = 0,
+          totalDuration = 0;
+        for (let i = 1; i < steps.length; i++) {
+          const request = {
+            origin: { lat: steps[i - 1].lat, lng: steps[i - 1].lng },
+            destination: { lat: steps[i].lat, lng: steps[i].lng },
+            travelMode: currentMode === 'DRIVING_TRUCK' ? 'DRIVING' : currentMode,
+          };
+          try {
+            const result = await new Promise((resolve, reject) =>
+              directionsService.route(request, (response, status) => (status === 'OK' ? resolve(response) : reject(status)))
+            );
+            const leg = result.routes[0].legs[0];
+            steps[i].distanceText = leg.distance.text;
+            steps[i].durationText = leg.duration.text;
+            totalDistance += leg.distance.value;
+            totalDuration += leg.duration.value;
+          } catch (e) {
+            console.warn('Erreur directions:', e);
+            steps[i].distanceText = null;
+            steps[i].durationText = null;
+          }
+        }
+        document.getElementById('totalInfo').innerText = `Distance totale : ${(totalDistance / 1000).toFixed(2)} km, Durée totale : ${formatDuration(totalDuration)}`;
+        renderSteps();
+      }
+
+      function formatDuration(seconds) {
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        return `${h > 0 ? h + 'h ' : ''}${m}min`;
+      }
+
+      function renderSteps() {
+        const container = document.getElementById('stepsList');
+        container.innerHTML = '';
+        steps.forEach((s, idx) => {
+          let distDurInfo = '';
+          if (idx > 0 && s.distanceText && s.durationText) {
+            distDurInfo = `<div style="font-size:12px;color:#777;margin-top:4px;">
+              <span>Distance : ${s.distanceText}</span>,
+              <span>Durée : ${s.durationText}</span>
+            </div>`;
+          }
+          const el = document.createElement('div');
+          el.className = 'step';
+          el.dataset.id = s.id;
+          el.innerHTML = `
+            <div style="width:72px;height:56px;flex-shrink:0">
+              ${s.photos && s.photos[0] ? `<img src="${s.photos[0].dataUrl}" class="thumb" alt="Photo">` : `<div style="width:72px;height:56px;background:#eee;border-radius:4px"></div>`}
+            </div>
+            <div class="meta">
+              <b>${s.name || 'Étape ' + (idx + 1)}</b>
+              <div style="font-size:13px;color:#555">${s.address}</div>
+              ${distDurInfo}
+              <div style="margin-top:6px">${s.desc ? `<small>${s.desc}</small>` : ''}</div>
+              <div style="margin-top:8px" class="inline">
+                <button onclick="moveStepUp('${s.id}')" class="smallbtn" aria-label="Déplacer l'étape vers le haut">↑</button>
+                <button onclick="moveStepDown('${s.id}')" class="smallbtn" aria-label="Déplacer l'étape vers le bas">↓</button>
+                <button onclick="editStep('${s.id}')" class="smallbtn" aria-label="Modifier l'étape">✎</button>
+                <button onclick="deleteStep('${s.id}')" class="smallbtn" aria-label="Supprimer l'étape">🗑</button>
+              </div>
+            </div>`;
+          container.appendChild(el);
+        });
+        document.getElementById('count').innerText = steps.length;
+        if (!container._sortable) {
+          container._sortable = Sortable.create(container, {
+            animation: 150,
+            onEnd: function (evt) {
+              const ids = Array.from(container.children).map((ch) => ch.dataset.id);
+              steps = ids.map((id) => steps.find((s) => s.id === id));
+              renderSteps();
+              refreshMap();
+              updateDistancesAndDurations();
+            },
+          });
+        }
+      }
+
+      function refreshMap() {
+        markers.forEach((m) => m.setMap(null));
+        markers = [];
+        if (polyline) {
+          polyline.setMap(null);
+          polyline = null;
+        }
+        steps.forEach((s, i) => {
+          const m = new google.maps.Marker({
+            position: { lat: s.lat, lng: s.lng },
+            label: (i + 1).toString(),
+            map: map,
+          });
+          const infowindow = new google.maps.InfoWindow({
+            content: `<b>${s.name || 'Étape ' + (i + 1)}</b><br>${s.address}<br>${s.desc || ''}`,
+          });
+          m.addListener('click', () => infowindow.open(map, m));
+          markers.push(m);
+        });
+        if (steps.length) {
+          map.setCenter({ lat: steps[0].lat, lng: steps[0].lng });
+          map.setZoom(12);
+        }
+        if (steps.length > 1) {
+          const path = steps.map((s) => ({ lat: s.lat, lng: s.lng }));
+          polyline = new google.maps.Polyline({ path: path, strokeColor: '#007bff', strokeOpacity: 0.8, strokeWeight: 4, map: map });
+        }
+      }
+
+      function initAutocomplete() {
+        autocomplete = new google.maps.places.Autocomplete(document.getElementById('inputAddress'), { types: ['geocode'] });
+        autocomplete.setFields(['formatted_address', 'geometry']);
+        autocomplete.addListener('place_changed', () => {
+          const place = autocomplete.getPlace();
+          if (!place.geometry) {
+            alert("L'adresse sélectionnée n'a pas de coordonnées géographiques.");
+            return;
+          }
+          document.getElementById('inputAddress').value = place.formatted_address;
+        });
+      }
+
+      window.moveStepUp = function (id) {
+        const idx = steps.findIndex((s) => s.id === id);
+        if (idx > 0) {
+          [steps[idx - 1], steps[idx]] = [steps[idx], steps[idx - 1]];
+          renderSteps();
+          refreshMap();
+          updateDistancesAndDurations();
+        }
+      };
+
+      window.moveStepDown = function (id) {
+        const idx = steps.findIndex((s) => s.id === id);
+        if (idx < steps.length - 1) {
+          [steps[idx + 1], steps[idx]] = [steps[idx], steps[idx + 1]];
+          renderSteps();
+          refreshMap();
+          updateDistancesAndDurations();
+        }
+      };
+
+      window.editStep = function (id) {
+        const s = steps.find((x) => x.id === id);
+        if (!s) return;
+        const newName = prompt('Nom', s.name || '');
+        const newDesc = prompt('Description', s.desc || '');
+        if (newName !== null) s.name = newName;
+        if (newDesc !== null) s.desc = newDesc;
+        renderSteps();
+        refreshMap();
+        updateDistancesAndDurations();
+      };
+
+      window.deleteStep = function (id) {
+        steps = steps.filter((s) => s.id !== id);
+        renderSteps();
+        refreshMap();
+        updateDistancesAndDurations();
+      };
+
+      document.getElementById('btnAdd').addEventListener('click', async () => {
+        const raw = document.getElementById('inputAddress').value.trim();
+        if (!raw) {
+          alert('Entrez une adresse ou un lien Google Maps');
+          return;
+        }
+        const name = document.getElementById('inputName').value.trim();
+        const desc = document.getElementById('inputDesc').value.trim();
+        const file = document.getElementById('inputPhoto').files[0] || null;
+
+        try {
+          const loc = await geocode(raw);
+          const step = { id: uid(), name: name, address: raw, desc: desc, lat: loc.lat, lng: loc.lng, photos: [] };
+          if (file) {
+            const fr = new FileReader();
+            fr.onload = function (e) {
+              step.photos.push({ name: file.name, dataUrl: e.target.result });
+              steps.push(step);
+              renderSteps();
+              refreshMap();
+              updateDistancesAndDurations();
+            };
+            fr.readAsDataURL(file);
+          } else {
+            steps.push(step);
+            renderSteps();
+            refreshMap();
+            updateDistancesAndDurations();
+          }
+          document.getElementById('inputAddress').value = '';
+          document.getElementById('inputName').value = '';
+          document.getElementById('inputDesc').value = '';
+          document.getElementById('inputPhoto').value = '';
+        } catch (err) {
+          alert('Géocodage échoué : ' + err);
+        }
+      });
+
+      document.getElementById('btnClear').addEventListener('click', () => {
+        if (confirm('Tout effacer ?')) {
+          steps = [];
+          renderSteps();
+          refreshMap();
+          document.getElementById('totalInfo').innerText = '';
+        }
+      });
+
+      document.getElementById('btnOpenGoogle').addEventListener('click', () => {
+        if (steps.length < 2) {
+          alert('2 étapes min.');
+          return;
+        }
+        let url = 'https://www.google.com/maps/dir/';
+        steps.forEach((s) => (url += `${s.lat},${s.lng}/`));
+        window.open(url, '_blank');
+      });
+
+      document.getElementById('btnOpenWaze').addEventListener('click', () => {
+        if (steps.length === 0) {
+          alert('Ajoute au moins une étape');
+          return;
+        }
+        const last = steps[steps.length - 1];
+        alert("Waze n'accepte que la dernière étape directement. Pour le parcours complet, exporte le fichier GPX.");
+        const url = `https://www.waze.com/ul?ll=${last.lat},${last.lng}&navigate=yes`;
+        window.open(url, '_blank');
+      });
+
+      document.getElementById('btnOpenTomTom').addEventListener('click', () => {
+        if (steps.length === 0) {
+          alert('Ajoute au moins une étape');
+          return;
+        }
+        const last = steps[steps.length - 1];
+        alert("TomTom n'accepte que la dernière étape directement. Pour le parcours complet, exporte le fichier GPX.");
+        const url = `https://mydrive.tomtom.com/en_us/route?center=${last.lat},${last.lng}&travelMode=drive`;
+        window.open(url, '_blank');
+      });
+
+      document.getElementById('btnOpenGarmin').addEventListener('click', () => {
+        if (steps.length === 0) {
+          alert('Ajoute au moins une étape');
+          return;
+        }
+        let url = 'https://www.google.com/maps/dir/';
+        steps.forEach((s) => {
+          url += `${s.lat},${s.lng}/`;
+        });
+        window.open(url, '_blank');
+      });
+
+      function exportKML() {
+        if (steps.length === 0) return alert('Ajoute des étapes');
+        let kml = `<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2"><Document>\n`;
+        steps.forEach((s) => {
+          kml += `<Placemark><name>${escapeXml(s.name || '')}</name><Point><coordinates>${s.lng},${s.lat},0</coordinates></Point></Placemark>\n`;
+        });
+        kml += `</Document></kml>`;
+        downloadBlob('circuit.kml', new Blob([kml], { type: 'application/vnd.google-earth.kml+xml' }));
+      }
+
+      function exportGPX() {
+        if (steps.length === 0) return alert('Ajoute des étapes');
+        let gpx = `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="CircuitApp">\n`;
+        steps.forEach((s) => {
+          gpx += `<wpt lat="${s.lat}" lon="${s.lng}"><name>${escapeXml(s.name || '')}</name><desc>${escapeXml(
+            s.desc || ''
+          )}</desc></wpt>\n`;
+        });
+        gpx += `</gpx>`;
+        downloadBlob('circuit.gpx', new Blob([gpx], { type: 'application/gpx+xml' }));
+      }
+
+      function escapeXml(str) {
+        if (!str) return '';
+        return ('' + str).replace(/[<>&'"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' }[c]));
+      }
+
+      function downloadBlob(filename, blob) {
+        saveAs(blob, filename);
+      }
+
+      document.getElementById('btnExportKML').addEventListener('click', exportKML);
+      document.getElementById('btnExportGPX').addEventListener('click', exportGPX);
+
+      function initMapOnceReady() {
+        if (typeof google === 'undefined' || !google.maps) {
+          setTimeout(initMapOnceReady, 300);
+          return;
+        }
+        geocoder = new google.maps.Geocoder();
+        map = new google.maps.Map(document.getElementById('map'), {
+          center: { lat: 48.8566, lng: 2.3522 },
+          zoom: 6,
+        });
+        placesService = new google.maps.places.PlacesService(map);
+        refreshMap();
+        initAutocomplete();
+      }
+      initMapOnceReady();
+    });
+  </script>
+</body>
+</html>*
