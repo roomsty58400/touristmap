@@ -223,6 +223,7 @@
         <button type="button" id="btnOpenGoogle" class="smallbtn">Ouvrir Google Maps</button>
         <button type="button" id="btnExportKML" class="smallbtn">Exporter KML</button>
         <button type="button" id="btnExportGPX" class="smallbtn">Exporter GPX</button>
+        <button type="button" id="btnExportPDF" class="smallbtn">Exporter en PDF</button>
        
         <button type="button" id="btnQR" class="smallbtn" style="display:none">QR du parcours</button>
         <button type="button" id="btnOpenWaze" class="smallbtn" style="display:none">Ouvrir Waze</button>
@@ -263,6 +264,8 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDEnoRyrP8_vFUQhK8V9s7ch1DEBECEyiA&libraries=places" async defer></script>
 
   <script>
@@ -634,6 +637,48 @@
         downloadBlob('circuit.gpx', new Blob([gpx], { type: 'application/gpx+xml' }));
       }
 
+      async function exportPDF() {
+        if (steps.length === 0) return alert('Ajoute des étapes avant d\'exporter en PDF');
+        try {
+          // capture map as image
+          const mapEl = document.getElementById('map');
+          const mapCanvas = await html2canvas(mapEl, {useCORS:true, logging:false});
+          const mapImgData = mapCanvas.toDataURL('image/png');
+
+          // build text content for steps
+          let content = 'Itinéraire\n\n';
+          steps.forEach((s, i) => {
+            content += `${i + 1}. ${s.name || 'Étape ' + (i + 1)}\n`;
+            content += `${s.address}\n`;
+            if (s.distanceText) content += `Distance: ${s.distanceText} - Durée: ${s.durationText}\n`;
+            if (s.desc) content += `${s.desc}\n`;
+            content += '\n';
+          });
+
+          // create PDF using jsPDF (umd)
+          const { jsPDF } = window.jspdf;
+          const pdf = new jsPDF('p', 'mm', 'a4');
+
+          // add map image at top
+          const pageWidth = pdf.internal.pageSize.getWidth();
+          const imgProps = pdf.getImageProperties(mapImgData);
+          const imgWidth = pageWidth - 20; // margins
+          const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
+          pdf.addImage(mapImgData, 'PNG', 10, 10, imgWidth, Math.min(imgHeight, 90));
+
+          // add text below image
+          const startY = 10 + Math.min(imgHeight, 90) + 8;
+          const split = pdf.splitTextToSize(content, pageWidth - 20);
+          pdf.setFontSize(11);
+          pdf.text(split, 10, startY);
+
+          pdf.save('itineraire.pdf');
+        } catch (e) {
+          console.error('PDF export error', e);
+          alert('Erreur lors de l\'export PDF : ' + e.message);
+        }
+      }
+
       function escapeXml(str) {
         if (!str) return '';
         return ('' + str).replace(/[<>&'"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' }[c]));
@@ -646,6 +691,8 @@
 
       document.getElementById('btnExportKML').addEventListener('click', exportKML);
       document.getElementById('btnExportGPX').addEventListener('click', exportGPX);
+      const btnExportPDF = document.getElementById('btnExportPDF');
+      if (btnExportPDF) btnExportPDF.addEventListener('click', exportPDF);
 
       function initMapOnceReady() {
         if (typeof google === 'undefined' || !google.maps) {
