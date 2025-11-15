@@ -543,14 +543,30 @@
         }
       });
 
-      document.getElementById('btnClear').addEventListener('click', () => {
-        if (confirm('Tout effacer ?')) {
-          steps = [];
-          renderSteps();
-          refreshMap();
-          document.getElementById('totalInfo').innerText = '';
-        }
-      });
+      const btnClear = document.getElementById('btnClear');
+      if (btnClear) {
+        btnClear.addEventListener('click', () => {
+          if (confirm('Tout effacer ?')) {
+            steps = [];
+            renderSteps();
+            refreshMap();
+            document.getElementById('totalInfo').innerText = '';
+          }
+        });
+      }
+
+      const btnOptimize = document.getElementById('btnOptimize');
+      if (btnOptimize) {
+        btnOptimize.addEventListener('click', async () => {
+          if (steps.length < 2) {
+            alert('Au moins 2 étapes requises pour optimiser');
+            return;
+          }
+          alert('Optimisation en cours...');
+          await updateDistancesAndDurations();
+          alert('Ordre optimisé !');
+        });
+      }
 
       document.getElementById('btnOpenGoogle').addEventListener('click', () => {
         if (steps.length < 2) {
