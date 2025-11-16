@@ -263,7 +263,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDEnoRyrP8_vFUQhK8V9s7ch1DEBECEyiA&libraries=places" async defer></script>
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDGJKPqgDBGTDBTL_IcnedRwajcsXevVaU&libraries=places" async defer></script>
 
   <script>
     window.axeptioSettings = {
@@ -454,7 +454,14 @@
       }
 
       function initAutocomplete() {
-        autocomplete = new google.maps.places.Autocomplete(document.getElementById('inputAddress'), { types: ['geocode'] });
+        
+        autocomplete = new google.maps.places.Autocomplete(
+  document.getElementById('inputAddress'),
+  {
+    types: ['establishment', 'geocode'], 
+    fields: ['formatted_address', 'geometry', 'name']
+  }
+);
         autocomplete.setFields(['formatted_address', 'geometry']);
         autocomplete.addListener('place_changed', () => {
           const place = autocomplete.getPlace();
