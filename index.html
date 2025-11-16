@@ -369,6 +369,8 @@
         }
         document.getElementById('totalInfo').innerText = `Distance totale : ${(totalDistance / 1000).toFixed(2)} km, Durée totale : ${formatDuration(totalDuration)}`;
         renderSteps();
+        // Mise à jour de la carte après le calcul des distances
+        refreshMap();
       }
 
       function formatDuration(seconds) {
@@ -425,12 +427,15 @@
       }
 
       function refreshMap() {
+        // Supprimer les anciens markers et polyline
         markers.forEach((m) => m.setMap(null));
         markers = [];
         if (polyline) {
           polyline.setMap(null);
           polyline = null;
         }
+
+        // Créer les nouveaux markers
         steps.forEach((s, i) => {
           const m = new google.maps.Marker({
             position: { lat: s.lat, lng: s.lng },
@@ -443,13 +448,33 @@
           m.addListener('click', () => infowindow.open(map, m));
           markers.push(m);
         });
-        if (steps.length) {
+
+        // Ajuster la vue de la carte pour englober tous les markers
+        if (steps.length === 1) {
           map.setCenter({ lat: steps[0].lat, lng: steps[0].lng });
-          map.setZoom(12);
-        }
-        if (steps.length > 1) {
+          map.setZoom(14);
+        } else if (steps.length > 1) {
+          // Créer la polyline
           const path = steps.map((s) => ({ lat: s.lat, lng: s.lng }));
-          polyline = new google.maps.Polyline({ path: path, strokeColor: '#007bff', strokeOpacity: 0.8, strokeWeight: 4, map: map });
+          polyline = new google.maps.Polyline({ 
+            path: path, 
+            strokeColor: '#007bff', 
+            strokeOpacity: 0.8, 
+            strokeWeight: 4, 
+            map: map 
+          });
+
+          // Ajuster les limites de la carte pour inclure tous les points
+          const bounds = new google.maps.LatLngBounds();
+          steps.forEach((s) => bounds.extend({ lat: s.lat, lng: s.lng }));
+          map.fitBounds(bounds);
+
+          // Éviter un zoom trop proche si les points sont très proches
+          google.maps.event.addListenerOnce(map, 'bounds_changed', function() {
+            if (map.getZoom() > 15) {
+              map.setZoom(15);
+            }
+          });
         }
       }
 
@@ -508,8 +533,7 @@
       window.deleteStep = function (id) {
         steps = steps.filter((s) => s.id !== id);
         renderSteps();
-        refreshMap();
-        updateDistancesAndDurations();
+        updateDistancesAndDurations(); // refreshMap() sera appelé automatiquement
       };
 
       document.getElementById('btnAdd').addEventListener('click', async () => {
@@ -531,15 +555,13 @@
               step.photos.push({ name: file.name, dataUrl: e.target.result });
               steps.push(step);
               renderSteps();
-              refreshMap();
-              updateDistancesAndDurations();
+              updateDistancesAndDurations(); // refreshMap() sera appelé automatiquement
             };
             fr.readAsDataURL(file);
           } else {
             steps.push(step);
             renderSteps();
-            refreshMap();
-            updateDistancesAndDurations();
+            updateDistancesAndDurations(); // refreshMap() sera appelé automatiquement
           }
           document.getElementById('inputAddress').value = '';
           document.getElementById('inputName').value = '';
